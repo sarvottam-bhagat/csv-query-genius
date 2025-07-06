@@ -18,6 +18,11 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Game of Thrones themed variants
+        ice: "bg-gradient-ice border border-ice-blue/30 text-frost-white shadow-ice hover:shadow-glow hover:border-ice-blue/50 transition-all duration-300 animate-frost-glow",
+        steel: "bg-gradient-steel text-frost-white border border-steel-gray hover:bg-steel-gray/90 shadow-card transition-all duration-300",
+        night: "bg-winter-night border border-muted text-frost-white hover:bg-muted hover:shadow-ice transition-all duration-300",
+        dragon: "bg-gradient-glow text-winter-night font-semibold shadow-glow hover:shadow-ice animate-ice-pulse border border-primary/50"
       },
       size: {
         default: "h-10 px-4 py-2",
