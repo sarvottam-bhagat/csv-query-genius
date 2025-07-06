@@ -14,10 +14,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
   const { toast } = useToast();
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File upload triggered');
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('File selected:', file.name, file.type, file.size);
 
     if (!file.name.toLowerCase().endsWith('.csv')) {
+      console.log('Invalid file type:', file.name);
       toast({
         title: "Invalid file type",
         description: "Please upload a CSV file.",
@@ -26,43 +33,114 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
       return;
     }
 
-    // Simulate CSV parsing and table info generation
+    console.log('Starting CSV parsing...');
     const reader = new FileReader();
+    
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
+      toast({
+        title: "Error reading file",
+        description: "Failed to read the CSV file.",
+        variant: "destructive",
+      });
+    };
+    
     reader.onload = (e) => {
       try {
+        console.log('File read successfully');
         const csvContent = e.target?.result as string;
-        const lines = csvContent.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+        console.log('CSV content length:', csvContent?.length);
         
-        // Generate sample data
-        const sampleData = lines.slice(1, 6).map(line => {
-          const values = line.split(',');
+        if (!csvContent) {
+          throw new Error('Empty file content');
+        }
+
+        // Handle different line endings and split properly
+        const lines = csvContent.split(/\r?\n/).filter(line => line.trim() !== '');
+        console.log('Lines found:', lines.length);
+        
+        if (lines.length === 0) {
+          throw new Error('No data found in CSV');
+        }
+
+        // Parse headers with better CSV handling (handle quoted fields)
+        const parseCSVLine = (line: string): string[] => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+
+        const headers = parseCSVLine(lines[0]).map(h => 
+          h.replace(/^"|"$/g, '').trim().toLowerCase().replace(/\s+/g, '_')
+        );
+        
+        console.log('Headers:', headers);
+        
+        // Generate sample data with better parsing
+        const sampleData = lines.slice(1, Math.min(6, lines.length)).map(line => {
+          const values = parseCSVLine(line);
           const row: any = {};
           headers.forEach((header, index) => {
-            row[header] = values[index]?.trim() || '';
+            row[header] = values[index]?.replace(/^"|"$/g, '').trim() || '';
           });
           return row;
         }).filter(row => Object.values(row).some(val => val !== ''));
 
-        const tableInfo = {
-          table_name: 'data',
-          column_descriptions: headers.reduce((acc, header) => {
-            acc[header] = 'TEXT'; // Simplified - in real app would detect types
-            return acc;
-          }, {} as Record<string, string>),
-          sample_data: sampleData
+        console.log('Sample data:', sampleData);
+
+        // Detect column types based on sample data
+        const detectType = (values: any[]): string => {
+          const nonEmptyValues = values.filter(v => v !== '' && v != null);
+          if (nonEmptyValues.length === 0) return 'TEXT';
+          
+          const isNumeric = nonEmptyValues.every(v => !isNaN(Number(v)) && isFinite(Number(v)));
+          if (isNumeric) return 'NUMERIC';
+          
+          const isDate = nonEmptyValues.some(v => !isNaN(Date.parse(v)));
+          if (isDate) return 'DATE';
+          
+          return 'TEXT';
         };
 
+        const columnDescriptions = headers.reduce((acc, header) => {
+          const columnValues = sampleData.map(row => row[header]);
+          acc[header] = detectType(columnValues);
+          return acc;
+        }, {} as Record<string, string>);
+
+        const tableInfo = {
+          table_name: 'data',
+          column_descriptions: columnDescriptions,
+          sample_data: sampleData,
+          total_rows: lines.length - 1 // Exclude header
+        };
+
+        console.log('Table info created:', tableInfo);
         onFileUpload(file, tableInfo);
         
         toast({
           title: "File uploaded successfully!",
-          description: `Loaded ${headers.length} columns and ${sampleData.length} sample rows.`,
+          description: `Loaded ${headers.length} columns and ${sampleData.length} sample rows from ${tableInfo.total_rows} total rows.`,
         });
       } catch (error) {
+        console.error('CSV parsing error:', error);
         toast({
           title: "Error parsing CSV",
-          description: "Failed to parse the CSV file.",
+          description: `Failed to parse the CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: "destructive",
         });
       }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { DataPreview } from '@/components/DataPreview';
 import { ChatInterface } from '@/components/ChatInterface';
+import { ApiKeySetup } from '@/components/ApiKeySetup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sword, Snowflake, Crown } from 'lucide-react';
@@ -11,17 +12,68 @@ interface TableInfo {
   table_name: string;
   column_descriptions: Record<string, string>;
   sample_data: Record<string, any>[];
+  total_rows?: number;
 }
 
 const Index = () => {
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
+  const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiKey, setApiKey] = useState('');
 
   const handleFileUpload = (file: File, tableData: TableInfo) => {
     setIsLoading(true);
     
-    // Simulate processing delay
+    // Parse the full CSV data for the database
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csvContent = e.target?.result as string;
+        const lines = csvContent.split(/\r?\n/).filter(line => line.trim() !== '');
+        
+        const parseCSVLine = (line: string): string[] => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+
+        const headers = parseCSVLine(lines[0]).map(h => 
+          h.replace(/^"|"$/g, '').trim().toLowerCase().replace(/\s+/g, '_')
+        );
+        
+        const fullData = lines.slice(1).map(line => {
+          const values = parseCSVLine(line);
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index]?.replace(/^"|"$/g, '').trim() || '';
+          });
+          return row;
+        }).filter(row => Object.values(row).some(val => val !== ''));
+
+        setCsvData(fullData);
+      } catch (error) {
+        console.error('Error parsing full CSV:', error);
+      }
+    };
+    
+    reader.readAsText(file);
+    
+    // Set the table info and file
     setTimeout(() => {
       setCurrentFile(file);
       setTableInfo(tableData);
@@ -32,6 +84,7 @@ const Index = () => {
   const resetApp = () => {
     setCurrentFile(null);
     setTableInfo(null);
+    setCsvData([]);
     setIsLoading(false);
   };
 
@@ -85,8 +138,19 @@ const Index = () => {
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
           <div className="space-y-6">
-            {/* Step 1: File Upload */}
+            {/* Step 0: API Key Setup */}
             <div className="animate-slide-up">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-full bg-gradient-glow flex items-center justify-center">
+                  <span className="text-winter-night font-bold text-sm">0</span>
+                </div>
+                <h2 className="text-xl font-semibold text-frost-white">Configure AI Engine</h2>
+              </div>
+              <ApiKeySetup onApiKeySet={setApiKey} />
+            </div>
+
+            {/* Step 1: File Upload */}
+            <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-full bg-gradient-glow flex items-center justify-center">
                   <span className="text-winter-night font-bold text-sm">1</span>
@@ -122,7 +186,11 @@ const Index = () => {
                   </div>
                   <h2 className="text-xl font-semibold text-frost-white">Ask Questions</h2>
                 </div>
-                <ChatInterface tableInfo={tableInfo} />
+                <ChatInterface 
+                  tableInfo={tableInfo} 
+                  csvData={csvData}
+                  apiKey={apiKey}
+                />
               </div>
             )}
 
@@ -141,7 +209,12 @@ const Index = () => {
                       Harness the power of ancient magic to query your CSV data using natural language. 
                       Upload your data scroll and let the spirits of the North guide you through your data journey.
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                      <div className="p-4 bg-gradient-ice rounded-lg border border-ice-blue/30">
+                        <Crown className="h-6 w-6 text-ice-blue mx-auto mb-2" />
+                        <p className="text-frost-white font-medium">Configure AI</p>
+                        <p className="text-muted-foreground">Set your magic key</p>
+                      </div>
                       <div className="p-4 bg-gradient-ice rounded-lg border border-ice-blue/30">
                         <Crown className="h-6 w-6 text-ice-blue mx-auto mb-2" />
                         <p className="text-frost-white font-medium">Upload CSV</p>
