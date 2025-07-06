@@ -14,14 +14,27 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
   const { toast } = useToast();
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File upload triggered');
+    console.log('🔥 File upload triggered, event:', event);
+    console.log('🔥 Event target:', event.target);
+    console.log('🔥 Files:', event.target.files);
+    
     const file = event.target.files?.[0];
     if (!file) {
-      console.log('No file selected');
+      console.log('❌ No file selected');
+      toast({
+        title: "No file selected",
+        description: "Please select a CSV file to upload.",
+        variant: "destructive",
+      });
       return;
     }
 
-    console.log('File selected:', file.name, file.type, file.size);
+    console.log('✅ File selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
 
     if (!file.name.toLowerCase().endsWith('.csv')) {
       console.log('Invalid file type:', file.name);
@@ -161,7 +174,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-ice-blue/30 rounded-lg p-8 transition-all duration-300 hover:border-ice-blue/50 hover:bg-gradient-ice">
+        <div 
+          className="flex flex-col items-center justify-center border-2 border-dashed border-ice-blue/30 rounded-lg p-8 transition-all duration-300 hover:border-ice-blue/50 hover:bg-gradient-ice cursor-pointer"
+          onClick={() => {
+            console.log('🔥 Drop zone clicked');
+            const input = document.getElementById('csv-upload') as HTMLInputElement;
+            if (input) {
+              console.log('🔥 Triggering file input click');
+              input.click();
+            } else {
+              console.log('❌ Could not find file input');
+            }
+          }}
+        >
           {isUploaded ? (
             <div className="text-center">
               <CheckCircle className="h-12 w-12 text-primary mx-auto mb-4 animate-ice-pulse" />
@@ -173,8 +198,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
               <FileText className="h-12 w-12 text-ice-blue mb-4 animate-frost-glow" />
               <div className="text-center mb-4">
                 <p className="text-frost-white font-medium mb-2">Choose a CSV file</p>
-                <p className="text-muted-foreground text-sm">Drag and drop or click to upload</p>
+                <p className="text-muted-foreground text-sm">Click here or drag and drop to upload</p>
               </div>
+              
               <input
                 type="file"
                 accept=".csv"
@@ -183,18 +209,27 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
                 className="hidden"
                 id="csv-upload"
               />
-              <label htmlFor="csv-upload">
-                <Button 
-                  variant="ice" 
-                  size="lg" 
-                  disabled={isLoading}
-                  className="cursor-pointer"
-                >
-                  {isLoading ? 'Processing...' : 'Upload CSV'}
-                </Button>
-              </label>
+              
+              <Button 
+                variant="ice" 
+                size="lg" 
+                disabled={isLoading}
+                className="pointer-events-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                {isLoading ? 'Processing...' : 'Upload CSV'}
+              </Button>
             </>
           )}
+        </div>
+        
+        {/* Debug info */}
+        <div className="mt-4 text-xs text-muted-foreground">
+          <p>Debug: Click the upload area or button to select your CSV file</p>
+          <p>Supported: .csv files only</p>
         </div>
       </CardContent>
     </Card>
