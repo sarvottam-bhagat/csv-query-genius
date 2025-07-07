@@ -90,11 +90,25 @@ export class DatabaseService {
         const whereMatch = upperQuery.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+GROUP|\s+LIMIT|$)/i);
         if (whereMatch) {
           const whereClause = whereMatch[1].trim();
+          console.log('🔍 WHERE clause:', whereClause);
+          
           result = result.filter(row => {
             // Very basic WHERE clause handling
             // In a real app, you'd use a proper SQL parser
             const conditions = whereClause.split(/\s+AND\s+/i);
             return conditions.every(condition => {
+              console.log('🔍 Processing condition:', condition);
+              
+              // Better parsing for conditions with = operator
+              const equalMatch = condition.match(/(\w+)\s*=\s*'([^']+)'/i);
+              if (equalMatch) {
+                const [, field, value] = equalMatch;
+                const fieldValue = row[field.trim()];
+                console.log('🔍 Comparing:', { field: field.trim(), fieldValue, value });
+                return String(fieldValue).trim() === value.trim();
+              }
+              
+              // Fallback to original parsing for other operators
               const [field, operator, value] = condition.split(/\s*(=|!=|<|>|<=|>=|LIKE)\s*/i);
               if (field && operator && value) {
                 const fieldValue = row[field.trim()];
@@ -102,7 +116,7 @@ export class DatabaseService {
                 
                 switch (operator.toUpperCase()) {
                   case '=':
-                    return fieldValue == compareValue;
+                    return String(fieldValue).trim() === compareValue.trim();
                   case '!=':
                     return fieldValue != compareValue;
                   case '>':
