@@ -90,8 +90,12 @@ SQL Query:`;
         .replace(/```\n?/g, '')
         .trim();
 
-      // Remove any leading/trailing quotes
-      cleanedQuery = cleanedQuery.replace(/^['"`]|['"`]$/g, '');
+      // Only remove quotes if they wrap the entire query (not part of the SQL syntax)
+      if ((cleanedQuery.startsWith('"') && cleanedQuery.endsWith('"')) ||
+          (cleanedQuery.startsWith("'") && cleanedQuery.endsWith("'")) ||
+          (cleanedQuery.startsWith('`') && cleanedQuery.endsWith('`'))) {
+        cleanedQuery = cleanedQuery.slice(1, -1);
+      }
 
       return cleanedQuery;
     } catch (error) {
